@@ -10,24 +10,29 @@ Email Extractor reads tagged fields embedded in email text and returns structure
 - React, TypeScript, and Vite
 - NUnit for unit and integration tests
 
+## Screenshots
+
+![alt text](image-1.png)![alt text](image-2.png)![alt text](image-3.png)![alt text](image.png)
+
 ## Folders and files
 
 | Path | Purpose |
 | --- | --- |
+| `APIService/` | API Services
 | `APIService/src/Endpoints/` | Registers the extraction route and calls the service. |
 | `APIService/src/Contracts/` | Defines the API request and response types. |
 | `APIService/src/Services/` | Services that handle the extractions. |
 | `APIService/src/Utils/` | Contains tag detection, field naming, and tax helpers. |
 | `APIService/src/appsettings.json` | Configurable tax rate and field defaults. |
 | `APIService/tests/` | Contains NUnit unit tests and HTTP integration tests. |
-| `Client/src/` | Contains the React UI. |
+| `Client/` | Contains the React UI. |
 
 ## Assumptions
 
 | Area | Assumption |
 | --- | --- |
 | Markup | XML tags are either flat pairs or nested blocks of  paired tags inside email text. The supported format is `<tag>value</tag>`. Other XML items such as attributes, namespaces, self-closing tags, entity decoding are outside this scope. |
-| Extracted fields | JSON reflects the tag hierarchy and uses camelCase keys. Repeated XML tags under the same parent become arrays in input order. From example: `<name>Tom</name> <name>Mary</name>` becomes {"name":} ["Tom", "Mary"]|
+| Extracted fields | JSON reflects the tag hierarchy and uses camelCase keys. Repeated XML tags under the same parent become arrays in input order. From example: `<name>Tom</name> <name>Mary</name>` becomes {"name": ["Tom", "Mary"]}|
 | Totals | At least one `<total>` is required. Multiple totals are also allowed. All totals are tax-inclusive. If several appear, the API sums them before calculating tax once. |
 | Defaults | The current configuration applies `UNKNOWN` only to a missing, empty, or whitespace-only `<cost_centre>` directly within `<expense>`. See the configuration section below to see how applying defaults in different ways by configs.|
 
@@ -39,11 +44,18 @@ Email Extractor reads tagged fields embedded in email text and returns structure
 
 The cost-centre rule in `ExtractionRules:Defaults` is
 `{ "Parent": "expense", "Field": "costCentre", "Value": "UNKNOWN" }`.
-To apply the fallback at the root level instead, change that rule to
-`{ "Parent": "", "Field": "costCentre", "Value": "UNKNOWN" }`.
-`Parent` selects the containing tag (an empty string means the root), and `Field`
-is the camelCase JSON key. 
-
+To apply the fallback at the root level instead, change that rule to `{ "Parent": "", "Field": "costCentre", "Value": "UNKNOWN" }`. `Parent` selects the containing tag (an empty string means the root), and `Field`is the camelCase JSON key. 
+```json
+// sample configs
+{
+  "ExtractionRules": {
+    "TaxRate": 0.15,
+    "Defaults": [
+      { "Parent": "expense", "Field": "costCentre", "Value": "UNKNOWN" }
+    ]
+  }
+}
+```
 ### 2. API design
 
 #### Request
@@ -166,8 +178,5 @@ npm run test:e2e
 
 Playwright starts and stops the real .NET API and Vite frontend on dedicated ports `17777` and `17778`. Keep those ports free: existing servers are deliberately not reused, so the test cannot silently exercise stale code. You do not need to start the development servers yourself. Failed-test traces are saved in `Client/test-results/`.
 
-## Screenshots
-
-![alt text](image.png)![alt text](image-1.png)![alt text](image-2.png)
 
 
