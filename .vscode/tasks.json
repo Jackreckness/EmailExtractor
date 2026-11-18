@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Email Extractor API",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/APIService/src/ApiService.csproj",
+        "--configuration",
+        "Debug",
+        "/property:GenerateFullPaths=true"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/APIService/src"
+      },
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

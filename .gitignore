@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+.DS_Store
+
+# Playwright generated artifacts
+**/test-results/
+**/playwright-report/
+**/playwright/.cache/

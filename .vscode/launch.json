@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Email Extractor API",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build Email Extractor API",
+      "program": "${workspaceFolder}/APIService/src/bin/Debug/net10.0/ApiService.dll",
+      "cwd": "${workspaceFolder}/APIService/src",
+      "launchSettingsProfile": "EmailExtractor"
+    }
+  ]
+}
