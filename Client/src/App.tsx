@@ -1,32 +1,30 @@
-import { useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useEffect, useState } from 'react'
+import type { SubmitEvent } from 'react'
 import { extractEmail } from './extractEmail'
 import { sampleEmail } from './sampleEmail'
 
 type Submission =
   | { status: 'idle' }
-  | { status: 'pending' }
+  | { status: 'pending'; request: AbortController }
   | { status: 'success'; json: string; warnings: string[] }
   | { status: 'error'; message: string }
 
 export function App() {
   const [email, setEmail] = useState(sampleEmail)
   const [submission, setSubmission] = useState<Submission>({ status: 'idle' })
-  const activeRequest = useRef<AbortController | null>(null)
-  const emailInput = useRef<HTMLTextAreaElement>(null)
+  const activeRequest = submission.status === 'pending' ? submission.request : null
 
-  useEffect(() => () => activeRequest.current?.abort(), [])
+  useEffect(() => () => activeRequest?.abort(), [activeRequest])
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!email.trim() || activeRequest.current) {
+    if (!email.trim() || activeRequest) {
       return
     }
 
     const request = new AbortController()
-    activeRequest.current = request
-    setSubmission({ status: 'pending' })
+    setSubmission({ status: 'pending', request })
 
     try {
       const result = await extractEmail(email, request.signal)
@@ -38,23 +36,17 @@ export function App() {
         const message = error instanceof Error ? error.message : 'Extraction failed.'
         setSubmission({ status: 'error', message })
       }
-    } finally {
-      if (activeRequest.current === request) {
-        activeRequest.current = null
-      }
     }
   }
 
   function updateEmail(value: string) {
-    activeRequest.current?.abort()
-    activeRequest.current = null
+    activeRequest?.abort()
     setEmail(value)
     setSubmission({ status: 'idle' })
   }
 
   function clear() {
     updateEmail('')
-    emailInput.current?.focus()
   }
 
   return (
@@ -69,7 +61,6 @@ export function App() {
           <label className="panel-heading" htmlFor="email-text">Email text</label>
           <textarea
             id="email-text"
-            ref={emailInput}
             value={email}
             onChange={(event) => updateEmail(event.target.value)}
             placeholder="Paste your email here…"
