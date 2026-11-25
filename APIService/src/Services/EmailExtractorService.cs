@@ -19,7 +19,10 @@ public class EmailExtractorService(IExtractionRulesService rulesService) : IEmai
     {
         // Parse the text and get a tree of XMLMarkup objects
         var xmlMarkups = ParseMarkup(text);
+
+        // Find all <total> tags in the tree and validate their values
         var totals = FindTotals(xmlMarkups).ToArray();
+        
         if (totals.Length == 0)
         {
             throw new ApiException(ErrorCodes.MissingTotal);
@@ -42,8 +45,11 @@ public class EmailExtractorService(IExtractionRulesService rulesService) : IEmai
         {
             throw new ApiException(ErrorCodes.InvalidTotal);
         }
-
+        
+        // Calculate the sales tax and total excluding tax based on the rules
         var (salesTax, totalExcludingTax) = TaxCalculator.Calculate(total, rules.TaxRate);
+
+        // Build an arbitrary root XMLMarkup to hold the parsed markups and convert it to a JSON object
         var root = new XMLMarkup("", "", xmlMarkups);
         var warnings = new List<string>();
         var jsonObject = BuildJsonObject(root, warnings);
@@ -69,12 +75,15 @@ public class EmailExtractorService(IExtractionRulesService rulesService) : IEmai
             previousEnd = tag.Index + tag.Length;
             var tagName = tag.Groups["name"].Value;
             var isClosing = tagName.StartsWith('/');
+
+            // Handle opening tag
             if (!isClosing)
             {
                 openTags.Push((new XMLMarkup(tagName, ""), []));
                 continue;
             }
 
+            // Handle closing tag
             tagName = tagName[1..];
             if (openTags.Count == 0)
             {
@@ -82,6 +91,8 @@ public class EmailExtractorService(IExtractionRulesService rulesService) : IEmai
             }
 
             var opening = openTags.Pop();
+
+            // Check if the closing tag matches the last opened tag
             if (opening.Markup.TagName != tagName)
             {
                 var error = openTags.Any(openTag => openTag.Markup.TagName == tagName)
@@ -91,11 +102,14 @@ public class EmailExtractorService(IExtractionRulesService rulesService) : IEmai
             }
 
             opening.Markup.Value = string.Concat(opening.TextParts).Trim();
-            if (openTags.Count > 0)
+            
+            // If there are still open tags, add it as a child of the last opened tag
+            // Otherwise add it to the roots list
+            if (openTags.Count > 0) 
             {
                 openTags.Peek().Markup.Children.Add(opening.Markup);
             }
-            else
+            else 
             {
                 roots.Add(opening.Markup);
             }
@@ -114,12 +128,16 @@ public class EmailExtractorService(IExtractionRulesService rulesService) : IEmai
 
     private Dictionary<string, object> BuildJsonObject(XMLMarkup parent, List<string> warnings)
     {
+        //  Create a dictionary to hold the JSON object representation of the current parent tag
         var jsonObject = new Dictionary<string, object>();
         
+
+        // Get the default values for the current parent tag, if any
         var defaults = rules.DefaultsByParent.GetValueOrDefault(parent.TagName);
+
         foreach (var group in parent.Children.GroupBy(tag => JsonFieldName.From(tag.TagName)))
         {
-            var values = group.Select(BuildValue).ToArray();
+            var values = group.Select(tag => BuildValue(tag, parent, warnings)).ToArray();
             jsonObject.Add(group.Key, values.Length == 1 ? values[0] : values);
         }
 
@@ -137,25 +155,26 @@ public class EmailExtractorService(IExtractionRulesService rulesService) : IEmai
         }
 
         return jsonObject;
+    }
 
-        object BuildValue(XMLMarkup tag)
+    private object BuildValue(XMLMarkup tag, XMLMarkup parent, List<string> warnings)
+    {
+        if (tag.Children.Count > 0
+            || (tag.Value.Length == 0 && rules.DefaultsByParent.ContainsKey(tag.TagName)))
         {
-            if (tag.Children.Count > 0
-                || (tag.Value.Length == 0 && rules.DefaultsByParent.ContainsKey(tag.TagName)))
-            {
-                return BuildJsonObject(tag, warnings);
-            }
-
-            var key = JsonFieldName.From(tag.TagName);
-            if (string.IsNullOrWhiteSpace(tag.Value) && defaults?.ContainsKey(key) == true)
-            {
-                var defaultValue = defaults[key];
-                var fieldName = parent.TagName.Length > 0 ? $"{JsonFieldName.From(parent.TagName)}.{key}" : key;
-                warnings.Add($"{fieldName} was empty. Used default {defaultValue}.");
-                return defaultValue;
-            }
-
-            return tag.Value;
+            return BuildJsonObject(tag, warnings);
         }
+
+        var defaults = rules.DefaultsByParent.GetValueOrDefault(parent.TagName);
+        var key = JsonFieldName.From(tag.TagName);
+        if (string.IsNullOrWhiteSpace(tag.Value) && defaults?.ContainsKey(key) == true)
+        {
+            var defaultValue = defaults[key];
+            var fieldName = parent.TagName.Length > 0 ? $"{JsonFieldName.From(parent.TagName)}.{key}" : key;
+            warnings.Add($"{fieldName} was empty. Used default {defaultValue}.");
+            return defaultValue;
+        }
+
+        return tag.Value;
     }
 }

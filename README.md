@@ -9,6 +9,7 @@ Email Extractor reads tagged fields embedded in email text and returns structure
 - .NET 10 Minimal API in C#
 - React, TypeScript, and Vite
 - NUnit for unit and integration tests
+- UI test using playwright
 
 ## Screenshots
 
@@ -32,8 +33,8 @@ Email Extractor reads tagged fields embedded in email text and returns structure
 | Area | Assumption |
 | --- | --- |
 | Markup | XML tags are either flat pairs or nested blocks of  paired tags inside email text. The supported format is `<tag>value</tag>`. Other XML items such as attributes, namespaces, self-closing tags, entity decoding are outside this scope. |
-| Extracted fields | JSON reflects the tag hierarchy and uses camelCase keys. Repeated XML tags under the same parent become arrays in input order. From example: `<name>Tom</name> <name>Mary</name>` becomes {"name": ["Tom", "Mary"]}|
-| Totals | At least one `<total>` is required. Multiple totals are also allowed. All totals are tax-inclusive. If several appear, the API sums them before calculating tax once. |
+| Extracted fields | JSON preserves the XML tags hierarchy and formats in camelCase. Repeated XML tags under the same parent become arrays in input order. From example: `<name>Tom</name> <name>Mary</name>` becomes {"name": ["Tom", "Mary"]}|
+| Totals | At least one `<total>` is required. Multiple totals are also allowed. All totals are tax-inclusive. If several appear, the API will return the sum of all totals and calculate tax once. |
 | Defaults | The current configuration applies `UNKNOWN` only to a missing, empty, or whitespace-only `<cost_centre>` directly within `<expense>`. See the configuration section below to see how applying defaults in different ways by configs.|
 
 ## Key design decisions
@@ -176,7 +177,7 @@ Then, from `Client`, run the smoke test with one command:
 npm run test:e2e
 ```
 
-Playwright starts and stops the real .NET API and Vite frontend on dedicated ports `17777` and `17778`. Keep those ports free: existing servers are deliberately not reused, so the test cannot silently exercise stale code. You do not need to start the development servers yourself. Failed-test traces are saved in `Client/test-results/`.
+Playwright starts and stops the real .NET API and Vite frontend on dedicated ports `17777` and `17778`. Failed-test traces are saved in `Client/test-results/`.
 
 
 
